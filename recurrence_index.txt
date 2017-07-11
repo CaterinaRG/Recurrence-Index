@@ -1,0 +1,35 @@
+seasonality.test<-function(comm.tab,n=1000,probs=c(0.025, 0.975),lag.max=120,na.action=na.pass) 
+{
+  require(vegan)
+  
+  season.index<-function(x){
+    acf.all<-apply(as.matrix(x),2,acf,plot=F,lag.max=lag.max,na.action=na.pass)
+    acf.all<-sapply(acf.all,"[[",1)
+    apply(acf.all,2,function(x) sum(abs(x)))
+  }
+  
+  n<-n
+  season.index.real<-season.index(comm.tab)
+  
+  names(season.index.real) <- colnames(comm.tab)
+  season.index.simul<-matrix(NA, ncol = dim(comm.tab)[2],nrow = n)
+  for (i in 1:n) {
+    season.index.simul[i, ]<-season.index(comm.tab[sample(1:nrow(comm.tab)),])
+  }
+  colnames(season.index.simul) <- colnames(comm.tab)
+  season.index.simul <- as.data.frame(season.index.simul)
+  media <- apply(season.index.simul, 2, mean)
+  ci <- apply(season.index.simul, 2, quantile, probs = probs)
+  resultats <- data.frame(observed = season.index.real, mean.simulated = media,lowCI = ci[1, ], uppCI = ci[2, ], sign = NA)
+  for (j in 1:dim(resultats)[1]) {
+    if (resultats$observed[j] > resultats$uppCI[j]) 
+      resultats$sign[j] <- "SIGNIFICANTLY HIGHER"
+    if (resultats$observed[j] < resultats$lowCI[j]) 
+      resultats$sign[j] <- "SIGNIFICANTLY LOWER"
+    if (resultats$observed[j] >= resultats$lowCI[j] & resultats$observed[j] <= 
+        resultats$uppCI[j]) 
+      resultats$sign[j] <- "NON SIGNIFICANT"
+  }
+  resultats$sign <- as.factor(resultats$sign)
+  resultats
+}
